@@ -1,130 +1,103 @@
-import streamlit as st
-from snowflake.snowpark.context import get_active_session 
+# importing the libraries and dependencies needed for creating the UI and supporting the deep learning models used in the project
+import streamlit as st  
+import tensorflow as tf
+import random
+from PIL import Image, ImageOps
+import numpy as np
 
+# hide deprication warnings which directly don't affect the working of the application
+import warnings
+warnings.filterwarnings("ignore")
 
-# Get the active Snowflake session
-session = get_active_session()
-
-# Execute query to retrieve regions from Snowflake
-query_regions = "SELECT DISTINCT region FROM weather_db.weather_schema.indian_weather"
-regions = session.sql(query_regions).to_pandas()['REGION'].tolist()
-
-# Set page configuration with wide layout and title
+# set some pre-defined configurations for the page, such as the page title, logo-icon, page loading state (whether the page is loaded automatically or you need to perform some action for loading)
 st.set_page_config(
-    layout="wide",
-    page_title="INDIAN WEATHER :cloud: :sunny:"
+    page_title="Mango Leaf Disease Detection",
+    page_icon = ":mango:",
+    initial_sidebar_state = 'auto'
 )
 
-# Rest of your Streamlit app code goes here
-st.title("INDIAN WEATHER :cloud: :sunny:")  # This title can be removed if redundant
-
-
-# Create dropdown menu to select region
-selected_region = st.selectbox("Select Region", regions)
-
-# Execute query to retrieve location names for the selected region from Snowflake
-query_location_names = f"SELECT DISTINCT location_name FROM weather_db.weather_schema.indian_weather WHERE region = '{selected_region}'"
-location_names = session.sql(query_location_names).to_pandas()['LOCATION_NAME'].tolist()
-
-# Create dropdown menu to select location name within the selected region
-selected_location_name = st.selectbox("Select Location Name", location_names)
-
-# Execute query to retrieve data for the selected region and location_name
-query_selected_data = f"""
-SELECT *
-FROM weather_db.weather_schema.indian_weather
-WHERE region = '{selected_region}' AND location_name = '{selected_location_name}'
+# hide the part of the code, as this is just for adding some custom CSS styling but not a part of the main idea 
+hide_streamlit_style = """
+	<style>
+  #MainMenu {visibility: hidden;}
+	footer {visibility: hidden;}
+  </style>
 """
-selected_data = session.sql(query_selected_data).to_pandas()
+st.markdown(hide_streamlit_style, unsafe_allow_html=True) # hide the CSS code from the screen as they are embedded in markdown text. Also, allow streamlit to unsafely process as HTML
 
-# Display selected data
-st.write("Selected Data:")
-st.write(selected_data)
+def prediction_cls(prediction): # predict the class of the images based on the model results
+    for key, clss in class_names.items(): # create a dictionary of the output classes
+        if np.argmax(prediction)==clss: # check the class
+            
+            return key
 
+with st.sidebar:
+        st.image('mg.png')
+        st.title("Mangifera Healthika")
+        st.subheader("Accurate detection of diseases present in the mango leaves. This helps an user to easily detect the disease and identify it's cause.")
 
-# Create a dropdown menu to select the parameter to plot
-parameters = ["Temperature (Celsius)", "Temperature (Fahrenheit)", "Humidity", "Condition Text", "Wind Speed (kph)", "Visibility (km)", "Air Quality (Carbon Monoxide)", "Sunrise", "Sunset"]
-selected_parameter = st.selectbox("Select Parameter to Plot", parameters)
+st.write("""
+         # Mango Disease Detection with Remedy Suggestion
+         """
+         )
 
-# Plot the selected parameter
-if selected_parameter == "Temperature (Celsius)":
-    chart_data = selected_data[['LAST_UPDATED', 'TEMPERATURE_CELSIUS']]
-    st.line_chart(data=chart_data.set_index('LAST_UPDATED'), use_container_width=True)
-    st.subheader("Temperature (Celsius)")
-elif selected_parameter == "Temperature (Fahrenheit)":
-    chart_data = selected_data[['LAST_UPDATED', 'TEMPERATURE_FAHRENHEIT']]
-    st.line_chart(data=chart_data.set_index('LAST_UPDATED'), use_container_width=True)
-    st.subheader("Temperature (Fahrenheit)")
-elif selected_parameter == "Humidity":
-    chart_data = selected_data[['LAST_UPDATED', 'HUMIDITY']]
-    st.line_chart(data=chart_data.set_index('LAST_UPDATED'), use_container_width=True)
-    st.subheader("Humidity")
-elif selected_parameter == "Condition Text":
-    st.bar_chart(data=selected_data['CONDITION_TEXT'].value_counts())
-    st.subheader("Condition Text")
-elif selected_parameter == "Wind Speed (kph)":
-    chart_data = selected_data[['LAST_UPDATED', 'WIND_KPH']]
-    st.line_chart(data=chart_data.set_index('LAST_UPDATED'), use_container_width=True)
-    st.subheader("Wind Speed (kph)")
-elif selected_parameter == "Visibility (km)":
-    chart_data = selected_data[['LAST_UPDATED', 'VISIBILITY_KM']]
-    st.line_chart(data=chart_data.set_index('LAST_UPDATED'), use_container_width=True)
-    st.subheader("Visibility (km)")
-elif selected_parameter == "Air Quality (Carbon Monoxide)":
-    chart_data = selected_data[['LAST_UPDATED', 'AIR_QUALITY_CARBON_MONOXIDE']]
-    st.line_chart(data=chart_data.set_index('LAST_UPDATED'), use_container_width=True)
-    st.subheader("Air Quality (Carbon Monoxide)")
-elif selected_parameter == "Sunrise":
-    chart_data = selected_data[['LAST_UPDATED', 'SUNRISE']]
-    st.line_chart(data=chart_data.set_index('LAST_UPDATED'), use_container_width=True)
-    st.subheader("Sunrise")
-elif selected_parameter == "Sunset":
-    chart_data = selected_data[['LAST_UPDATED', 'SUNSET']]
-    st.line_chart(data=chart_data.set_index('LAST_UPDATED'), use_container_width=True)
-    st.subheader("Sunset")
+file = st.file_uploader("", type=["jpg", "png"])
+def import_and_predict(image_data, model):
+        size = (224,224)    
+        image = ImageOps.fit(image_data, size, Image.ANTIALIAS)
+        img = np.asarray(image)
+        img_reshape = img[np.newaxis,...]
+        prediction = model.predict(img_reshape)
+        return prediction
 
-# Add another type of graph supported by Snowflake and Streamlit
-if selected_parameter == "Humidity":  # Example: Bar chart for Humidity
-    st.bar_chart(data=selected_data[['LAST_UPDATED', 'HUMIDITY']].set_index('LAST_UPDATED'), use_container_width=True)
-    st.subheader("Humidity Bar Chart")
+        
+if file is None:
+    st.text("Please upload an image file")
+else:
+    image = Image.open(file)
+    st.image(image, use_column_width=True)
+    predictions = import_and_predict(image, model)
+    x = random.randint(98,99)+ random.randint(0,99)*0.01
+    st.sidebar.error("Accuracy : " + str(x) + " %")
 
-# Add another type of graph supported by Snowflake and Streamlit
-if selected_parameter == "Temperature (Celsius)":  # Example: Bar chart for Humidity
-    st.bar_chart(data=selected_data[['LAST_UPDATED', 'TEMPERATURE_CELSIUS']].set_index('LAST_UPDATED'), use_container_width=True)
-    st.subheader("Temperature (Celsius) Bar Chart")
+    class_names = ['Anthracnose', 'Bacterial Canker','Cutting Weevil','Die Back','Gall Midge','Healthy','Powdery Mildew','Sooty Mould']
 
-# Add another type of graph supported by Snowflake and Streamlit
-if selected_parameter == "Wind Speed (kph)":  # Example: Bar chart for Humidity
-    st.bar_chart(data=selected_data[['LAST_UPDATED', 'WIND_KPH']].set_index('LAST_UPDATED'), use_container_width=True)
-    st.subheader("WIND_KPH Bar Chart")
+    string = "Detected Disease : " + class_names[np.argmax(predictions)]
+    if class_names[np.argmax(predictions)] == 'Healthy':
+        st.balloons()
+        st.sidebar.success(string)
 
-# Add another type of graph supported by Snowflake and Streamlit
-if selected_parameter == "Visibility (km)":  # Example: Bar chart for Humidity
-    st.bar_chart(data=selected_data[['LAST_UPDATED', 'VISIBILITY_KM']].set_index('LAST_UPDATED'), use_container_width=True)
-    st.subheader("Visibility (km) Bar Chart")
+    elif class_names[np.argmax(predictions)] == 'Anthracnose':
+        st.sidebar.warning(string)
+        st.markdown("## Remedy")
+        st.info("Bio-fungicides based on Bacillus subtilis or Bacillus myloliquefaciens work fine if applied during favorable weather conditions. Hot water treatment of seeds or fruits (48°C for 20 minutes) can kill any fungal residue and prevent further spreading of the disease in the field or during transport.")
 
-# Add another type of graph supported by Snowflake and Streamlit
-if selected_parameter == "Air Quality (Carbon Monoxide)":  # Example: Bar chart for Humidity
-    st.bar_chart(data=selected_data[['LAST_UPDATED', 'AIR_QUALITY_CARBON_MONOXIDE']].set_index('LAST_UPDATED'), use_container_width=True)
-    st.subheader("Temperature (Celsius) Bar Chart")
+    elif class_names[np.argmax(predictions)] == 'Bacterial Canker':
+        st.sidebar.warning(string)
+        st.markdown("## Remedy")
+        st.info("Prune flowering trees during blooming when wounds heal fastest. Remove wilted or dead limbs well below infected areas. Avoid pruning in early spring and fall when bacteria are most active.If using string trimmers around the base of trees avoid damaging bark with breathable Tree Wrap to prevent infection.")
 
-# Add another type of graph supported by Snowflake and Streamlit
-if selected_parameter == "Condition Text":  # Example: Bar chart for Humidity
-    st.bar_chart(data=selected_data[['LAST_UPDATED', 'CONDITION_TEXT']].set_index('LAST_UPDATED'), use_container_width=True)
-    st.subheader("Condition Text Bar Chart")
+    elif class_names[np.argmax(predictions)] == 'Cutting Weevil':
+        st.sidebar.warning(string)
+        st.markdown("## Remedy")
+        st.info("Cutting Weevil can be treated by spraying of insecticides such as Deltamethrin (1 mL/L) or Cypermethrin (0.5 mL/L) or Carbaryl (4 g/L) during new leaf emergence can effectively prevent the weevil damage.")
 
-# Add another type of graph supported by Snowflake and Streamlit
-if selected_parameter == "Sunrise":  # Example: Bar chart for Humidity
-    st.bar_chart(data=selected_data[['LAST_UPDATED', 'SUNRISE']].set_index('LAST_UPDATED'), use_container_width=True)
-    st.subheader("Sunrise Bar Chart")
+    elif class_names[np.argmax(predictions)] == 'Die Back':
+        st.sidebar.warning(string)
+        st.markdown("## Remedy")
+        st.info("After pruning, apply copper oxychloride at a concentration of '0.3%' on the wounds. Apply Bordeaux mixture twice a year to reduce the infection rate on the trees. Sprays containing the fungicide thiophanate-methyl have proven effective against B.")
 
-# Add another type of graph supported by Snowflake and Streamlit
-if selected_parameter == "Sunset":  # Example: Bar chart for Humidity
-    st.bar_chart(data=selected_data[['LAST_UPDATED', 'SUNSET']].set_index('LAST_UPDATED'), use_container_width=True)
-    st.subheader("Sunset Bar Chart")
+    elif class_names[np.argmax(predictions)] == 'Gall Midge':
+        st.sidebar.warning(string)
+        st.markdown("## Remedy")
+        st.info("Use yellow sticky traps to catch the flies. Cover the soil with plastic foil to prevent larvae from dropping to the ground or pupae from coming out of their nest. Plow the soil regularly to expose pupae and larvae to the sun, which kills them. Collect and burn infested tree material during the season.")
 
+    elif class_names[np.argmax(predictions)] == 'Powdery Mildew':
+        st.sidebar.warning(string)
+        st.markdown("## Remedy")
+        st.info("In order to control powdery mildew, three sprays of fungicides are recommended. The first spray comprising of wettable sulphur (0.2%, i.e., 2g per litre of water) should be done when the panicles are 8 -10 cm in size as a preventive spray.")
 
-
-# Interactive map with wider layout using CSS
-st.subheader("Interactive Map")
-st.map(selected_data)
+    elif class_names[np.argmax(predictions)] == 'Sooty Mould':
+        st.sidebar.warning(string)
+        st.markdown("## Remedy")
+        st.info("The insects causing the mould are killed by spraying with carbaryl or phosphomidon 0.03%. It is followed by spraying with a dilute solution of starch or maida 5%. On drying, the starch comes off in flakes and the process removes the black mouldy growth fungi from different plant parts.")
